@@ -1,0 +1,45 @@
+{
+  "data_label": "PLACEHOLDER / MODEL VALUES",
+  "description": "Все оценки и свойства ниже синтетические. confirmed означает заданное значение в модельном кейсе, а не эмпирически подтверждённое свойство архитектуры.",
+  "architectures": [
+    {
+      "id": "A1", "name": "Монолитная архитектура",
+      "ratings": {
+        "K1": {"value": 2, "status": "confirmed"},
+        "K2": {"value": 2, "status": "confirmed"},
+        "K3": {"value": 3, "status": "confirmed"},
+        "K4": {"value": 5, "status": "confirmed"},
+        "K5": {"value": 5, "status": "confirmed"},
+        "K6": {"value": 4, "status": "confirmed"}
+      },
+      "properties": {"independent_deployment": false, "integration_capacity": 2, "operating_units": 1, "deployment_mode": "single"},
+      "risk_ids": ["R1"]
+    },
+    {
+      "id": "A2", "name": "Сервис-ориентированная архитектура (SOA)",
+      "ratings": {
+        "K1": {"value": 4, "status": "confirmed"},
+        "K2": {"value": 4, "status": "confirmed"},
+        "K3": {"value": 5, "status": "confirmed"},
+        "K4": {"value": 3, "status": "confirmed"},
+        "K5": {"value": 3, "status": "confirmed"},
+        "K6": {"value": 3, "status": "confirmed"}
+      },
+      "properties": {"independent_deployment": true, "integration_capacity": 4, "operating_units": 3, "deployment_mode": "distributed"},
+      "risk_ids": []
+    },
+    {
+      "id": "A3", "name": "Микросервисная архитектура",
+      "ratings": {
+        "K1": {"value": 5, "status": "confirmed"},
+        "K2": {"value": 5, "status": "confirmed"},
+        "K3": {"value": 4, "status": "confirmed"},
+        "K4": {"value": 2, "status": "confirmed"},
+        "K5": {"value": 2, "status": "confirmed"},
+        "K6": {"value": 2, "status": "confirmed"}
+      },
+      "properties": {"independent_deployment": true, "integration_capacity": 5, "operating_units": 5, "deployment_mode": "distributed"},
+      "risk_ids": ["R2", "R3"]
+    }
+  ]
+}

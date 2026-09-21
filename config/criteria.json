@@ -1,0 +1,24 @@
+{
+  "data_label": "PLACEHOLDER / MODEL VALUES",
+  "description": "Техническая модель. Веса не являются экспертными оценками.",
+  "settings": {
+    "tie_policy": "tie",
+    "tie_tolerance": 1e-12,
+    "top_factor_count": 3,
+    "missing_policy": "model_or_block",
+    "sensitivity": {
+      "step": 0.01,
+      "min_weight": 0.0,
+      "max_weight": 1.0,
+      "zero_remainder_policy": "uniform"
+    }
+  },
+  "criteria": [
+    {"id": "K1", "key": "scalability", "name": "Масштабируемость", "description": "Модельная оценка возможностей масштабирования.", "direction": "maximize", "weight": 1},
+    {"id": "K2", "key": "deployment_independence", "name": "Независимость изменений и развёртывания", "description": "Модельная оценка независимости изменений и развёртывания.", "direction": "maximize", "weight": 1},
+    {"id": "K3", "key": "integration_flexibility", "name": "Интеграционная гибкость", "description": "Модельная оценка гибкости интеграций.", "direction": "maximize", "weight": 1},
+    {"id": "K4", "key": "development_simplicity", "name": "Простота разработки", "description": "Большая оценка означает более простую разработку.", "direction": "maximize", "weight": 1},
+    {"id": "K5", "key": "operational_simplicity", "name": "Простота эксплуатации", "description": "Большая оценка означает более простую эксплуатацию.", "direction": "maximize", "weight": 1},
+    {"id": "K6", "key": "cost_efficiency", "name": "Стоимость / экономичность", "description": "Большая оценка означает большую экономичность, а не большую стоимость.", "direction": "maximize", "weight": 1}
+  ]
+}

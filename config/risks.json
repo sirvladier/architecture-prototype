@@ -1,0 +1,9 @@
+{
+  "data_label": "PLACEHOLDER / MODEL VALUES",
+  "description": "Синтетические условия и тексты рисков, не универсальные утверждения об архитектурах.",
+  "risks": [
+    {"id": "R1", "architecture": "A1", "criterion": "K1", "operator": "<=", "threshold": 2, "text": "Ограниченная масштабируемость в данной модельной постановке"},
+    {"id": "R2", "architecture": "A3", "criterion": "K5", "operator": "<=", "threshold": 2, "text": "Повышенная эксплуатационная сложность в данной модельной постановке"},
+    {"id": "R3", "architecture": "A3", "criterion": "K6", "operator": "in", "threshold": [1, 2], "text": "Низкая экономичность в данной модельной постановке"}
+  ]
+}
