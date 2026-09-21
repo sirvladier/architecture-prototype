@@ -68,8 +68,8 @@ def test_no_exclusions_message_is_exact():
 def test_exclusion_reason_separate_from_factors_of_preference():
     result = case_result("one_excluded")
     display = format_p2(result)
-    assert display["exclusion_texts"] == ["Монолитная архитектура исключена, поскольку не удовлетворяет обязательному требованию «Независимое развёртывание»."]
-    assert "Независимое развёртывание»" not in display["summary"][0]
+    assert display["exclusion_texts"] == ["Монолитная архитектура исключена, поскольку не удовлетворяет обязательному требованию «Независимое развёртывание компонентов»; требуемое значение: «Да»."]
+    assert "Независимое развёртывание компонентов»" not in display["summary"][0]
     assert display["positive_table"] == result.main_positive_factors
     assert display["negative_table"] == result.main_negative_factors
 
@@ -77,7 +77,7 @@ def test_exclusion_reason_separate_from_factors_of_preference():
 def test_absent_property_is_not_misrepresented_as_known_false():
     model = load_model()
     model.constraints[0]["enabled"] = True
-    del model.architectures[0]["properties"]["independent_deployment"]
+    del model.architectures[0]["properties"]["independent_component_deployment"]
     display = format_p2(build_explanation(model))
     assert "не подтверждено выполнение обязательного требования" in display["exclusion_texts"][0]
     assert "свойство не задано" in display["exclusion_texts"][0]
@@ -101,7 +101,7 @@ def test_single_feasible_is_explained_as_eligibility_not_ranking_victory():
     result = case_result("single_feasible")
     display = format_p2(result)
     text = main_text(display)
-    assert "Сервис-ориентированная архитектура (SOA) является единственной допустимой альтернативой" in text
+    assert "Монолитная архитектура является единственной допустимой альтернативой" in text
     assert "получила преимущество" not in text
     assert display["comparison_message"] == NO_COMPETITOR
     assert display["comparison_title"] is None

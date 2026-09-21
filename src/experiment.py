@@ -7,7 +7,8 @@ from pathlib import Path
 import pandas as pd
 
 from src.explanation import build_explanation, validate_explanation
-from src.models import ROOT, apply_case, load_cases, load_model
+from src.models import ROOT, apply_case, load_cases, load_model, read_json
+from src.user_cases import configuration_identity
 
 
 def validate_case(result, expected):
@@ -31,13 +32,19 @@ def run_experiment(root=ROOT, output=None):
     output = Path(output) if output is not None else root / "data" / "experiment_results.csv"
     output.parent.mkdir(parents=True, exist_ok=True)
     base = load_model(root)
+    snapshot = {"schema_version": 1, **configuration_identity(root),
+                "configuration": {name: read_json(root / "config" / f"{name}.json")
+                                  for name in ("architectures", "criteria", "constraints", "risks")},
+                "model_cases": read_json(root / "data" / "example_cases.json")}
+    snapshot_path = output.with_name(output.stem + "_config_snapshot.json")
     rows, records = [], []
-    for case in load_cases(root):
+    for case in snapshot["model_cases"]["cases"]:
         result = build_explanation(apply_case(base, case))
         errors = validate_explanation(result) + validate_case(result, case.get("expected", {}))
         deltas = [row["delta"] for row in result.sensitivity if row["delta"] is not None]
         tie_deltas = [row["tie_delta"] for row in result.sensitivity if row["tie_delta"] is not None]
         rows.append({
+            "model_config_id": snapshot["model_config_id"], "config_snapshot": snapshot_path.name,
             "case_id": case["id"], "recommended_architecture": result.recommended_architecture,
             "excluded_count": len(result.excluded_alternatives),
             "positive_factor_count": len(result.main_positive_factors),
@@ -54,6 +61,7 @@ def run_experiment(root=ROOT, output=None):
     frame = pd.DataFrame(rows)
     frame.to_csv(output, index=False, encoding="utf-8-sig", lineterminator="\n", float_format="%.12g")
     output.with_suffix(".json").write_text(json.dumps(records, ensure_ascii=False, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+    snapshot_path.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     return frame
 
 

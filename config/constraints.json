@@ -1,15 +1,33 @@
 {
-  "data_label": "PLACEHOLDER / MODEL VALUES",
+  "data_label": "Литературно-информированная порядковая модель",
   "properties": [
-    {"property": "independent_deployment", "name": "Независимое развёртывание компонентов", "type": "boolean"},
-    {"property": "integration_capacity", "name": "Интеграционная ёмкость (модель)", "type": "numeric"},
-    {"property": "operating_units", "name": "Число эксплуатационных единиц (модель)", "type": "numeric"},
-    {"property": "deployment_mode", "name": "Способ развёртывания", "type": "categorical", "value_labels": {"single": "Единое развёртывание", "distributed": "Распределённое развёртывание"}}
+    {
+      "property": "independent_component_deployment",
+      "name": "Независимое развёртывание компонентов",
+      "type": "boolean"
+    },
+    {
+      "property": "single_deployment_unit",
+      "name": "Единая развёртываемая единица",
+      "type": "boolean"
+    }
   ],
   "constraints": [
-    {"id": "C1", "name": "Независимое развёртывание", "type": "boolean", "property": "independent_deployment", "expected": true, "enabled": false},
-    {"id": "C2", "name": "Минимальная интеграционная ёмкость (модель)", "type": "numeric_min", "property": "integration_capacity", "threshold": 3, "enabled": false},
-    {"id": "C3", "name": "Максимум эксплуатационных единиц (модель)", "type": "numeric_max", "property": "operating_units", "threshold": 3, "enabled": false},
-    {"id": "C4", "name": "Допустимый способ развёртывания (модель)", "type": "categorical", "property": "deployment_mode", "allowed_values": ["single", "distributed"], "enabled": false}
+    {
+      "id": "C1",
+      "name": "Независимое развёртывание компонентов",
+      "type": "boolean",
+      "property": "independent_component_deployment",
+      "expected": true,
+      "enabled": false
+    },
+    {
+      "id": "C2",
+      "name": "Единая развёртываемая единица",
+      "type": "boolean",
+      "property": "single_deployment_unit",
+      "expected": true,
+      "enabled": false
+    }
   ]
 }

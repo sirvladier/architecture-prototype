@@ -1,45 +1,132 @@
 {
-  "data_label": "PLACEHOLDER / MODEL VALUES",
-  "description": "Все оценки и свойства ниже синтетические. confirmed означает заданное значение в модельном кейсе, а не эмпирически подтверждённое свойство архитектуры.",
+  "data_label": "Литературно-информированная порядковая модель",
+  "description": "Оценки 1–5 используются для формализации качественных различий между архитектурными альтернативами в рамках данного исследования и не являются универсальными нормативными значениями. confirmed означает фиксированную модельную оценку, а не эмпирическое подтверждение.",
   "architectures": [
     {
-      "id": "A1", "name": "Монолитная архитектура",
+      "id": "A1",
+      "name": "Монолитная архитектура",
       "ratings": {
-        "K1": {"value": 2, "status": "confirmed"},
-        "K2": {"value": 2, "status": "confirmed"},
-        "K3": {"value": 3, "status": "confirmed"},
-        "K4": {"value": 5, "status": "confirmed"},
-        "K5": {"value": 5, "status": "confirmed"},
-        "K6": {"value": 4, "status": "confirmed"}
+        "K1": {
+          "value": 2,
+          "status": "confirmed"
+        },
+        "K2": {
+          "value": 1,
+          "status": "confirmed"
+        },
+        "K3": {
+          "value": 2,
+          "status": "confirmed"
+        },
+        "K4": {
+          "value": 5,
+          "status": "confirmed"
+        },
+        "K5": {
+          "value": 5,
+          "status": "confirmed"
+        },
+        "K6": {
+          "value": 4,
+          "status": "confirmed"
+        }
       },
-      "properties": {"independent_deployment": false, "integration_capacity": 2, "operating_units": 1, "deployment_mode": "single"},
-      "risk_ids": ["R1"]
+      "properties": {
+        "independent_component_deployment": false,
+        "single_deployment_unit": true
+      },
+      "risk_ids": [
+        "R1_A1",
+        "R2_A1",
+        "R3_A1",
+        "R4_A1",
+        "R5_A1",
+        "R6_A1"
+      ]
     },
     {
-      "id": "A2", "name": "Сервис-ориентированная архитектура (SOA)",
+      "id": "A2",
+      "name": "Сервис-ориентированная архитектура (SOA)",
       "ratings": {
-        "K1": {"value": 4, "status": "confirmed"},
-        "K2": {"value": 4, "status": "confirmed"},
-        "K3": {"value": 5, "status": "confirmed"},
-        "K4": {"value": 3, "status": "confirmed"},
-        "K5": {"value": 3, "status": "confirmed"},
-        "K6": {"value": 3, "status": "confirmed"}
+        "K1": {
+          "value": 4,
+          "status": "confirmed"
+        },
+        "K2": {
+          "value": 4,
+          "status": "confirmed"
+        },
+        "K3": {
+          "value": 5,
+          "status": "confirmed"
+        },
+        "K4": {
+          "value": 3,
+          "status": "confirmed"
+        },
+        "K5": {
+          "value": 3,
+          "status": "confirmed"
+        },
+        "K6": {
+          "value": 3,
+          "status": "confirmed"
+        }
       },
-      "properties": {"independent_deployment": true, "integration_capacity": 4, "operating_units": 3, "deployment_mode": "distributed"},
-      "risk_ids": []
+      "properties": {
+        "independent_component_deployment": true,
+        "single_deployment_unit": false
+      },
+      "risk_ids": [
+        "R1_A2",
+        "R2_A2",
+        "R3_A2",
+        "R4_A2",
+        "R5_A2",
+        "R6_A2"
+      ]
     },
     {
-      "id": "A3", "name": "Микросервисная архитектура",
+      "id": "A3",
+      "name": "Микросервисная архитектура",
       "ratings": {
-        "K1": {"value": 5, "status": "confirmed"},
-        "K2": {"value": 5, "status": "confirmed"},
-        "K3": {"value": 4, "status": "confirmed"},
-        "K4": {"value": 2, "status": "confirmed"},
-        "K5": {"value": 2, "status": "confirmed"},
-        "K6": {"value": 2, "status": "confirmed"}
+        "K1": {
+          "value": 5,
+          "status": "confirmed"
+        },
+        "K2": {
+          "value": 5,
+          "status": "confirmed"
+        },
+        "K3": {
+          "value": 4,
+          "status": "confirmed"
+        },
+        "K4": {
+          "value": 2,
+          "status": "confirmed"
+        },
+        "K5": {
+          "value": 2,
+          "status": "confirmed"
+        },
+        "K6": {
+          "value": 2,
+          "status": "confirmed"
+        }
       },
-      "properties": {"independent_deployment": true, "integration_capacity": 5, "operating_units": 5, "deployment_mode": "distributed"},
-      "risk_ids": ["R2", "R3"]
+      "properties": {
+        "independent_component_deployment": true,
+        "single_deployment_unit": false
+      },
+      "risk_ids": [
+        "R1_A3",
+        "R2_A3",
+        "R3_A3",
+        "R4_A3",
+        "R5_A3",
+        "R6_A3"
+      ]
     }
   ]
 }

@@ -14,7 +14,7 @@ def user_case(weights=None, constraints=None):
     return UserCase.from_dict({"weights": weights if weights is not None else {f"K{i}": 1 for i in range(1, 7)}, "constraints": constraints or []})
 
 
-def requirement(prop="independent_deployment", operator="==", value=True):
+def requirement(prop="independent_component_deployment", operator="==", value=True):
     return {"name": "Обязательное требование", "property": prop, "operator": operator, "required_value": value}
 
 
@@ -64,9 +64,8 @@ def test_invalid_user_weights_rejected(value):
 @pytest.mark.parametrize("constraint,excluded", [
     (requirement(), {"A1"}),
     (requirement(value=False), {"A2", "A3"}),
-    (requirement("operating_units", "<=", 3), {"A3"}),
-    (requirement("integration_capacity", ">=", 3), {"A1"}),
-    (requirement("deployment_mode", "in", ["single"]), {"A2", "A3"}),
+    (requirement("single_deployment_unit", "==", True), {"A2", "A3"}),
+    (requirement("single_deployment_unit", "==", False), {"A1"}),
 ])
 def test_user_constraints_use_existing_eligibility_checks(constraint, excluded):
     result = build_explanation(build_user_model(user_case(constraints=[constraint])))
@@ -77,8 +76,8 @@ def test_user_constraints_use_existing_eligibility_checks(constraint, excluded):
 
 @pytest.mark.parametrize("constraint", [
     requirement("not_a_property"), requirement(operator=">="), requirement(value=1),
-    requirement("deployment_mode", "in", []), requirement("deployment_mode", "in", ["unknown"]),
-    requirement("operating_units", "<=", True), {**requirement(), "ratings": {}}, {**requirement(), "name": " "},
+    requirement("single_deployment_unit", "in", []), requirement("single_deployment_unit", "==", "Да"),
+    requirement("K1", ">=", 4), {**requirement(), "ratings": {}}, {**requirement(), "name": " "},
 ])
 def test_invalid_requirements_are_rejected(constraint):
     with pytest.raises(ConfigError):
@@ -98,7 +97,7 @@ def test_model_and_user_paths_share_decision_results():
 
 
 def test_export_contains_calculated_weights_constraints_and_config_identifiers():
-    case = user_case(constraints=[requirement(), requirement("operating_units", "<=", 3)])
+    case = user_case(constraints=[requirement(), requirement("single_deployment_unit", "==", False)])
     result = build_explanation(build_user_model(case))
     saved = json.loads(json.dumps(export_user_case(result), allow_nan=False))
     assert saved["weights"] == case.weights
@@ -182,7 +181,7 @@ def test_user_ui_is_read_only_for_model_and_calculates_only_on_explicit_action(m
     assert not app.session_state["result"].excluded_alternatives
 
 
-def test_user_ui_zero_weights_and_invalid_category_do_not_run_engine(monkeypatch):
+def test_user_ui_zero_weights_do_not_run_engine(monkeypatch):
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     app.radio(key="work_mode").set_value("Пользовательский кейс").run()
     def forbidden(*args, **kwargs):
@@ -194,28 +193,22 @@ def test_user_ui_zero_weights_and_invalid_category_do_not_run_engine(monkeypatch
     assert not app.exception
     assert app.session_state["result"] is None
     assert any("Все веса равны нулю" in message.value for message in app.error)
-    app.number_input(key="user_weight_K1").set_value(1).run()
-    app.button(key="add_constraint").click().run()
-    app.selectbox(key="user_property_1").set_value("deployment_mode").run()
-    app.button(key="calculate_user").click().run()
-    assert not app.exception
-    assert any("Выберите хотя бы одно" in message.value for message in app.error)
 
 
-def test_user_ui_numeric_and_categorical_controls_and_mode_persistence():
+def test_user_ui_boolean_controls_and_mode_persistence():
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=30).run()
     app.radio(key="work_mode").set_value("Пользовательский кейс").run()
     app.button(key="add_constraint").click().run()
-    app.selectbox(key="user_property_1").set_value("operating_units").run()
-    app.selectbox(key="user_operator_1_operating_units").set_value("<=")
-    app.number_input(key="user_required_1_operating_units").set_value(3).run()
+    assert app.selectbox(key="user_property_1").options == ["Независимое развёртывание компонентов", "Единая развёртываемая единица"]
+    app.selectbox(key="user_property_1").set_value("single_deployment_unit").run()
+    assert app.selectbox(key="user_operator_1_single_deployment_unit").options == ["Равно"]
+    assert app.selectbox(key="user_required_1_single_deployment_unit").options == ["Да", "Нет"]
     app.button(key="add_constraint").click().run()
-    app.selectbox(key="user_property_2").set_value("deployment_mode").run()
-    app.multiselect(key="user_required_2_deployment_mode").set_value(["distributed"]).run()
+    app.selectbox(key="user_required_2_independent_component_deployment").set_value(False).run()
     app.button(key="calculate_user").click().run()
     assert not app.exception
     result = app.session_state["result"]
-    assert result.recommended_architecture == "A2"
+    assert result.recommended_architecture == "A1"
     assert len(result.excluded_alternatives) == 2
     app.radio(key="work_mode").set_value("Модельный кейс").run()
     app.radio(key="work_mode").set_value("Пользовательский кейс").run()

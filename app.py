@@ -21,7 +21,7 @@ STATUS = {
     "ok": "Рекомендация сформирована",
     "tie": "Равенство: единственный победитель не определён",
     "insufficient_data": "Расчёт остановлен: отсутствуют обязательные оценки",
-    "no_feasible": "Нет допустимых архитектур",
+    "no_feasible": "Рекомендация не сформирована: ни одна из рассматриваемых архитектур не удовлетворяет всем заданным обязательным ограничениям.",
 }
 SENSITIVITY_STATUS = {
     "switch_found": "Найдена смена победителя",
@@ -109,8 +109,9 @@ def render_p2(result, view):
     if view["excluded_alternatives"]:
         with st.expander("Проверка обязательных требований"):
             p2_table([{"Архитектура": row["name"], "Требование": v["name"], "ID": v["constraint_id"],
-                       "Свойство": v["property"], "Фактически": json.dumps(v["actual"], ensure_ascii=False),
-                       "Условие": f"{v['operator']} {json.dumps(v['expected'], ensure_ascii=False)}"}
+                       "Свойство": {p["property"]: p["name"] for p in load_property_catalog()}.get(v["property"], v["name"]),
+                       "Фактически": "Не задано" if v["actual"] is None else "Да" if v["actual"] else "Нет",
+                       "Требуемое значение": "Да" if v["expected"] else "Нет"}
                       for row in view["excluded_alternatives"] for v in row["violated_constraints"]])
 
     if display["comparison_title"]:
@@ -162,7 +163,7 @@ def render_extended(result):
         st.write(paragraph)
     if result.risks:
         with st.expander("Подробные данные о рисках", expanded=False):
-            p2_table([{"Правило": r["id"], "Архитектура": names[r["architecture"]],
+            p2_table([{"Правило": r["id"].split("_")[0], "Архитектура": names[r["architecture"]],
                        "Критерий": f"{criteria[r['criterion']]} ({r['criterion']})",
                        "Оператор": r["operator"], "Порог": json.dumps(r["threshold"], ensure_ascii=False),
                        "Использованное значение": r["used_value"], "Статус данных": r["data_status"],
@@ -213,13 +214,20 @@ def render_extended(result):
 def render_model_parameters(model):
     st.subheader("Параметры модели")
     st.caption("Оценки архитектур являются параметрами модельной постановки и в текущей версии не редактируются пользователем")
-    st.warning("Значения являются параметрами модельной постановки. В текущей версии они не являются универсальными нормативными оценками архитектур")
+    st.caption("Оценки 1–5 являются порядковой исследовательской моделью качественных различий между архитектурными альтернативами и не являются универсальными нормативными значениями.")
+    from src.models import ROOT, read_json
+    scale = read_json(ROOT / "config" / "criteria.json")["scale"]
+    st.caption("Шкала: " + "; ".join(f"{value} — {meaning}" for value, meaning in scale.items()) + ".")
+    st.caption(next(c["description"] for c in model.criteria if c["id"] == "K6"))
     table([{"Архитектура": a["name"], **{key: str(r["value"]) if r["status"] != "missing" else f"missing; model={r.get('model_value')}" for key, r in a["ratings"].items()}} for a in model.architectures])
     with st.expander("Статусы оценок и свойства архитектур"):
         table([{"Архитектура": a["name"], "Критерий": key, "Значение": r.get("value"), "Статус": r["status"], "Модельное значение": r.get("model_value")} for a in model.architectures for key, r in a["ratings"].items()])
-        table([{"Архитектура": a["name"], **a["properties"]} for a in model.architectures])
+        properties = {p["property"]: p["name"] for p in load_property_catalog()}
+        table([{"Архитектура": a["name"], **{properties[key]: "Да" if value else "Нет" for key, value in a["properties"].items()}} for a in model.architectures])
     with st.expander("Правила риска модели"):
-        table([{"Архитектура": next(a["name"] for a in model.architectures if a["id"] == r["architecture"]), "Риск": r["text"]} for r in model.risks])
+        st.caption("Каждое правило применяется к рекомендуемой архитектуре по фактически использованной оценке критерия.")
+        rules = read_json(ROOT / "config" / "risks.json")["risks"]
+        table([{"Правило": r["id"], "Условие": f"{r['criterion']} ≤ {r['threshold']}", "Риск": r["text"]} for r in rules])
 
 
 def render_user_inputs(base, catalog):
@@ -248,13 +256,12 @@ def render_user_inputs(base, catalog):
         st.error("Все веса равны нулю. Задайте положительную значимость хотя бы одного критерия.")
 
     st.subheader("Обязательные требования проекта")
+    st.caption("Задайте обязательное значение свойства. «Нет» означает требование отсутствия свойства, а не отключение ограничения. Чтобы снять требование, удалите его. Все требования проверяются до рейтинга.")
     properties = {item["property"]: item for item in catalog}
     if st.button("Добавить ограничение", icon=":material/add:", key="add_constraint"):
         state["user_row_counter"] += 1
-        first_kind = catalog[0]["type"]
         state["user_constraints"].append({"row_id": state["user_row_counter"], "property": catalog[0]["property"],
-            "name": catalog[0]["name"], "operator": ">=" if first_kind == "numeric" else "in" if first_kind == "categorical" else "==",
-            "required_value": 0.0 if first_kind == "numeric" else [] if first_kind == "categorical" else True})
+            "name": catalog[0]["name"], "operator": "==", "required_value": True})
     constraints = []
     for row in state["user_constraints"][:]:
         token = row["row_id"]
@@ -271,28 +278,21 @@ def render_user_inputs(base, catalog):
                 format_func=lambda value: properties[value]["name"], key=f"user_property_{token}")
         spec = properties[prop]
         if prop != previous:
-            row.update(property=prop, name=spec["name"], operator=">=" if spec["type"] == "numeric" else "in" if spec["type"] == "categorical" else "==",
-                       required_value=0.0 if spec["type"] == "numeric" else [] if spec["type"] == "categorical" else True)
+            row.update(property=prop, name=spec["name"], operator="==", required_value=True)
         restore_widget(f"user_name_{token}_{prop}", row["name"])
         row["name"] = st.text_input("Название требования", key=f"user_name_{token}_{prop}")
         first, second = st.columns(2)
-        operators = ["=="] if spec["type"] == "boolean" else [">=", "<="] if spec["type"] == "numeric" else ["in"]
+        operators = ["=="]
         with first:
             restore_widget(f"user_operator_{token}_{prop}", row["operator"])
             row["operator"] = st.selectbox("Условие", operators,
-                format_func=lambda value: {"==": "Равно", ">=": "Не меньше", "<=": "Не больше", "in": "Одно из допустимых значений"}[value],
+                format_func=lambda value: {"==": "Равно"}[value],
                 key=f"user_operator_{token}_{prop}")
         with second:
             value_key = f"user_required_{token}_{prop}"
             restore_widget(value_key, row["required_value"])
-            if spec["type"] == "boolean":
-                row["required_value"] = st.selectbox("Требуемое значение", [True, False],
-                    format_func=lambda value: "Да" if value else "Нет", key=value_key)
-            elif spec["type"] == "numeric":
-                row["required_value"] = st.number_input("Требуемое значение", key=value_key)
-            else:
-                row["required_value"] = st.multiselect("Допустимые значения", list(spec["value_labels"]),
-                    format_func=lambda value: spec["value_labels"][value], key=value_key)
+            row["required_value"] = st.selectbox("Требуемое значение", [True, False],
+                format_func=lambda value: "Да" if value else "Нет", key=value_key)
         constraints.append({key: deepcopy(row[key]) for key in ("name", "property", "operator", "required_value")})
     return UserCase.from_dict({"weights": weights, "constraints": constraints})
 
@@ -300,7 +300,7 @@ def render_user_inputs(base, catalog):
 def main():
     st.header("Выбор архитектуры")
     st.caption("Исследовательский прототип · A1 / A2 / A3")
-    st.warning("PLACEHOLDER / MODEL VALUES · Синтетические оценки, свойства и правила. Результаты не являются универсальными рекомендациями по выбору архитектуры.")
+    st.info("Литературно-информированная порядковая модель. Оценки 1–5 используются для формализации качественных различий между архитектурными альтернативами в рамках данного исследования и не являются универсальными нормативными значениями.")
     try:
         base, cases, catalog = load_model(), load_cases(), load_property_catalog()
         identity = configuration_identity()
@@ -357,7 +357,7 @@ def main():
             st.subheader("Обязательные требования модельного кейса")
             enabled = [r for r in model.constraints if r["enabled"]]
             if enabled:
-                table([{"Требование": r["name"], "Параметры": json.dumps({k: v for k, v in r.items() if k in {"expected", "threshold", "allowed_values"}}, ensure_ascii=False)} for r in enabled])
+                table([{"Требование": r["name"], "Условие": "Равно", "Требуемое значение": "Да" if r["expected"] else "Нет"} for r in enabled])
             else:
                 st.write("Обязательные ограничения не заданы.")
         render_model_parameters(model)

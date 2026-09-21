@@ -142,11 +142,26 @@ def validate_model(model):
 def load_model(root=ROOT):
     root = Path(root)
     documents = {name: read_json(root / "config" / f"{name}.json") for name in ("architectures", "criteria", "constraints", "risks")}
+    # Expand criterion-level configuration into the existing architecture-bound
+    # risk contract. Validation and the calculation engine remain unchanged.
+    configured_risks = documents["risks"]["risks"]
+    _unique_ids(configured_risks, "configured risks")
+    risks = []
+    for rule in configured_risks:
+        if "scope" in rule:
+            require(rule["scope"] == "all_architectures" and "architecture" not in rule,
+                    "Invalid risk scope")
+            for architecture in documents["architectures"]["architectures"]:
+                risks.append({**{key: value for key, value in rule.items() if key != "scope"},
+                              "id": f"{rule['id']}_{architecture['id']}",
+                              "architecture": architecture["id"]})
+        else:
+            risks.append(rule)
     model = Model(
         architectures=documents["architectures"]["architectures"],
         criteria=documents["criteria"]["criteria"],
         constraints=documents["constraints"]["constraints"],
-        risks=documents["risks"]["risks"],
+        risks=risks,
         settings=documents["criteria"]["settings"],
         labels={key: value["data_label"] for key, value in documents.items()},
     )

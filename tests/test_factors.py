@@ -43,9 +43,9 @@ def test_risk_keeps_model_value_provenance():
         criterion["weight"] = int(criterion["id"] == "K1")
     model.architectures[2]["ratings"]["K5"] = {"value": None, "status": "missing", "model_value": 2}
     result = build_explanation(model)
-    risk = next(r for r in result.risks if r["id"] == "R2")
+    risk = next(r for r in result.risks if r["id"] == "R5_A3")
     assert risk["used_value"] == 2
     assert risk["data_status"] == "missing" and risk["model_value_used"]
     changed = deepcopy(model)
-    changed.risks[1]["threshold"] = 1
-    assert "R2" not in {r["id"] for r in build_explanation(changed).risks}
+    next(r for r in changed.risks if r["id"] == "R5_A3")["threshold"] = 1
+    assert "R5_A3" not in {r["id"] for r in build_explanation(changed).risks}

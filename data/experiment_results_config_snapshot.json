@@ -1,0 +1,462 @@
+{
+  "schema_version": 1,
+  "architecture_config_id": "sha256:ef4682895f3f42b3c497d065e09a47760d7c2668f44f1d10bbb7b0b4f45bfc9e",
+  "model_config_id": "sha256:c70ddb9e3982a9c245b4a512fae438ac0a66e907c4356f447b277c77ae9c4db9",
+  "configuration": {
+    "architectures": {
+      "data_label": "Литературно-информированная порядковая модель",
+      "description": "Оценки 1–5 используются для формализации качественных различий между архитектурными альтернативами в рамках данного исследования и не являются универсальными нормативными значениями. confirmed означает фиксированную модельную оценку, а не эмпирическое подтверждение.",
+      "architectures": [
+        {
+          "id": "A1",
+          "name": "Монолитная архитектура",
+          "ratings": {
+            "K1": {
+              "value": 2,
+              "status": "confirmed"
+            },
+            "K2": {
+              "value": 1,
+              "status": "confirmed"
+            },
+            "K3": {
+              "value": 2,
+              "status": "confirmed"
+            },
+            "K4": {
+              "value": 5,
+              "status": "confirmed"
+            },
+            "K5": {
+              "value": 5,
+              "status": "confirmed"
+            },
+            "K6": {
+              "value": 4,
+              "status": "confirmed"
+            }
+          },
+          "properties": {
+            "independent_component_deployment": false,
+            "single_deployment_unit": true
+          },
+          "risk_ids": [
+            "R1_A1",
+            "R2_A1",
+            "R3_A1",
+            "R4_A1",
+            "R5_A1",
+            "R6_A1"
+          ]
+        },
+        {
+          "id": "A2",
+          "name": "Сервис-ориентированная архитектура (SOA)",
+          "ratings": {
+            "K1": {
+              "value": 4,
+              "status": "confirmed"
+            },
+            "K2": {
+              "value": 4,
+              "status": "confirmed"
+            },
+            "K3": {
+              "value": 5,
+              "status": "confirmed"
+            },
+            "K4": {
+              "value": 3,
+              "status": "confirmed"
+            },
+            "K5": {
+              "value": 3,
+              "status": "confirmed"
+            },
+            "K6": {
+              "value": 3,
+              "status": "confirmed"
+            }
+          },
+          "properties": {
+            "independent_component_deployment": true,
+            "single_deployment_unit": false
+          },
+          "risk_ids": [
+            "R1_A2",
+            "R2_A2",
+            "R3_A2",
+            "R4_A2",
+            "R5_A2",
+            "R6_A2"
+          ]
+        },
+        {
+          "id": "A3",
+          "name": "Микросервисная архитектура",
+          "ratings": {
+            "K1": {
+              "value": 5,
+              "status": "confirmed"
+            },
+            "K2": {
+              "value": 5,
+              "status": "confirmed"
+            },
+            "K3": {
+              "value": 4,
+              "status": "confirmed"
+            },
+            "K4": {
+              "value": 2,
+              "status": "confirmed"
+            },
+            "K5": {
+              "value": 2,
+              "status": "confirmed"
+            },
+            "K6": {
+              "value": 2,
+              "status": "confirmed"
+            }
+          },
+          "properties": {
+            "independent_component_deployment": true,
+            "single_deployment_unit": false
+          },
+          "risk_ids": [
+            "R1_A3",
+            "R2_A3",
+            "R3_A3",
+            "R4_A3",
+            "R5_A3",
+            "R6_A3"
+          ]
+        }
+      ]
+    },
+    "criteria": {
+      "data_label": "Литературно-информированная порядковая модель",
+      "description": "Оценки 1–5 используются для формализации качественных различий между архитектурными альтернативами в рамках данного исследования и не являются универсальными нормативными значениями. Веса выражают приоритеты конкретного проекта.",
+      "settings": {
+        "tie_policy": "tie",
+        "tie_tolerance": 1e-12,
+        "top_factor_count": 3,
+        "missing_policy": "model_or_block",
+        "sensitivity": {
+          "step": 0.01,
+          "min_weight": 0.0,
+          "max_weight": 1.0,
+          "zero_remainder_policy": "uniform"
+        }
+      },
+      "criteria": [
+        {
+          "id": "K1",
+          "key": "scalability",
+          "name": "Масштабируемость",
+          "description": "Модельная оценка возможностей масштабирования.",
+          "direction": "maximize",
+          "weight": 1
+        },
+        {
+          "id": "K2",
+          "key": "deployment_independence",
+          "name": "Независимость изменений и развёртывания",
+          "description": "Модельная оценка независимости изменений и развёртывания.",
+          "direction": "maximize",
+          "weight": 1
+        },
+        {
+          "id": "K3",
+          "key": "integration_flexibility",
+          "name": "Интеграционная гибкость",
+          "description": "Модельная оценка гибкости интеграций.",
+          "direction": "maximize",
+          "weight": 1
+        },
+        {
+          "id": "K4",
+          "key": "development_simplicity",
+          "name": "Простота разработки",
+          "description": "Большая оценка означает более простую разработку.",
+          "direction": "maximize",
+          "weight": 1
+        },
+        {
+          "id": "K5",
+          "key": "operational_simplicity",
+          "name": "Простота эксплуатации",
+          "description": "Большая оценка означает более простую эксплуатацию.",
+          "direction": "maximize",
+          "weight": 1
+        },
+        {
+          "id": "K6",
+          "key": "cost_efficiency",
+          "name": "Стоимость / экономичность",
+          "description": "Критерий отражает сравнительную экономичность реализации и эксплуатации в рамках модельной постановки, включая инфраструктурные и эксплуатационные накладные расходы. Он не является расчётом полной стоимости владения и может зависеть от масштаба, нагрузки и контекста проекта.",
+          "direction": "maximize",
+          "weight": 1
+        }
+      ],
+      "scale": {
+        "1": "выраженно неблагоприятное положение альтернативы по критерию",
+        "2": "неблагоприятное положение",
+        "3": "промежуточное / смешанное положение",
+        "4": "преимущество",
+        "5": "выраженное преимущество"
+      }
+    },
+    "constraints": {
+      "data_label": "Литературно-информированная порядковая модель",
+      "properties": [
+        {
+          "property": "independent_component_deployment",
+          "name": "Независимое развёртывание компонентов",
+          "type": "boolean"
+        },
+        {
+          "property": "single_deployment_unit",
+          "name": "Единая развёртываемая единица",
+          "type": "boolean"
+        }
+      ],
+      "constraints": [
+        {
+          "id": "C1",
+          "name": "Независимое развёртывание компонентов",
+          "type": "boolean",
+          "property": "independent_component_deployment",
+          "expected": true,
+          "enabled": false
+        },
+        {
+          "id": "C2",
+          "name": "Единая развёртываемая единица",
+          "type": "boolean",
+          "property": "single_deployment_unit",
+          "expected": true,
+          "enabled": false
+        }
+      ]
+    },
+    "risks": {
+      "data_label": "Литературно-информированная порядковая модель",
+      "description": "Шесть правил применяются ко всем архитектурам. Риск рекомендации срабатывает, если фактически использованная оценка соответствующего критерия <= 2; это также относится к estimated и явному model_value.",
+      "risks": [
+        {
+          "id": "R1",
+          "criterion": "K1",
+          "operator": "<=",
+          "threshold": 2,
+          "text": "Ограниченная масштабируемость может затруднить адаптацию системы к существенному росту нагрузки.",
+          "scope": "all_architectures"
+        },
+        {
+          "id": "R2",
+          "criterion": "K2",
+          "operator": "<=",
+          "threshold": 2,
+          "text": "Ограниченная независимость изменений и развёртывания повышает связанность изменений между компонентами системы.",
+          "scope": "all_architectures"
+        },
+        {
+          "id": "R3",
+          "criterion": "K3",
+          "operator": "<=",
+          "threshold": 2,
+          "text": "Ограниченная интеграционная гибкость может усложнить взаимодействие с разнородными системами и сервисами.",
+          "scope": "all_architectures"
+        },
+        {
+          "id": "R4",
+          "criterion": "K4",
+          "operator": "<=",
+          "threshold": 2,
+          "text": "Архитектурный вариант предъявляет повышенные требования к сложности разработки и координации компонентов.",
+          "scope": "all_architectures"
+        },
+        {
+          "id": "R5",
+          "criterion": "K5",
+          "operator": "<=",
+          "threshold": 2,
+          "text": "Архитектурный вариант связан с повышенной сложностью эксплуатации, наблюдаемости и сопровождения распределённых компонентов.",
+          "scope": "all_architectures"
+        },
+        {
+          "id": "R6",
+          "criterion": "K6",
+          "operator": "<=",
+          "threshold": 2,
+          "text": "В рамках модельной постановки архитектурный вариант связан с повышенными инфраструктурными и эксплуатационными накладными расходами.",
+          "scope": "all_architectures"
+        }
+      ]
+    }
+  },
+  "model_cases": {
+    "data_label": "SYNTHETIC / MODEL CASES",
+    "cases": [
+      {
+        "id": "clear_winner",
+        "name": "1. Явный победитель",
+        "description": "Технический приоритет простоты и экономичности.",
+        "weights": {
+          "K1": 1,
+          "K2": 1,
+          "K3": 1,
+          "K4": 4,
+          "K5": 4,
+          "K6": 3
+        },
+        "expected": {
+          "status": "ok",
+          "recommended_architecture": "A1",
+          "excluded_count": 0
+        }
+      },
+      {
+        "id": "one_excluded",
+        "name": "2. Исключение обязательным ограничением",
+        "enabled_constraints": [
+          "C1"
+        ],
+        "expected": {
+          "status": "ok",
+          "recommended_architecture": "A2",
+          "excluded_count": 1
+        }
+      },
+      {
+        "id": "close_scores",
+        "name": "3. Близкие оценки",
+        "weights": {
+          "K1": 0.505,
+          "K2": 0,
+          "K3": 0,
+          "K4": 0.495,
+          "K5": 0,
+          "K6": 0
+        },
+        "expected": {
+          "status": "ok",
+          "recommended_architecture": "A3",
+          "max_runner_up_gap": 0.003
+        }
+      },
+      {
+        "id": "estimated_data",
+        "name": "4. Оценочные данные",
+        "ratings": {
+          "A2": {
+            "K3": {
+              "value": 5,
+              "status": "estimated"
+            }
+          }
+        },
+        "expected": {
+          "status": "ok",
+          "recommended_architecture": "A2",
+          "uncertain_count": 1
+        }
+      },
+      {
+        "id": "missing_with_model",
+        "name": "5. Пропуск с явным модельным значением",
+        "ratings": {
+          "A2": {
+            "K3": {
+              "value": null,
+              "status": "missing",
+              "model_value": 5
+            }
+          }
+        },
+        "expected": {
+          "status": "ok",
+          "recommended_architecture": "A2",
+          "uncertain_count": 1,
+          "based_on_incomplete_data": true
+        }
+      },
+      {
+        "id": "sensitive_weights",
+        "name": "6. Смена при малом изменении веса",
+        "weights": {
+          "K1": 0.51,
+          "K2": 0,
+          "K3": 0,
+          "K4": 0.49,
+          "K5": 0,
+          "K6": 0
+        },
+        "expected": {
+          "status": "ok",
+          "recommended_architecture": "A3",
+          "max_switch_delta": 0.02
+        }
+      },
+      {
+        "id": "missing_blocked",
+        "name": "7. Пропуск без модельного значения",
+        "ratings": {
+          "A2": {
+            "K3": {
+              "value": null,
+              "status": "missing"
+            }
+          }
+        },
+        "expected": {
+          "status": "insufficient_data",
+          "recommended_architecture": null
+        }
+      },
+      {
+        "id": "tie",
+        "name": "8. Равенство баллов",
+        "weights": {
+          "K1": 0.5,
+          "K2": 0,
+          "K3": 0,
+          "K4": 0.5,
+          "K5": 0,
+          "K6": 0
+        },
+        "expected": {
+          "status": "tie",
+          "recommended_architecture": null
+        }
+      },
+      {
+        "id": "none_feasible",
+        "name": "9. Нет допустимых альтернатив",
+        "enabled_constraints": [
+          "C1",
+          "C2"
+        ],
+        "expected": {
+          "status": "no_feasible",
+          "recommended_architecture": null,
+          "excluded_count": 3
+        }
+      },
+      {
+        "id": "single_feasible",
+        "name": "10. Единственная допустимая альтернатива",
+        "enabled_constraints": [
+          "C2"
+        ],
+        "expected": {
+          "status": "ok",
+          "recommended_architecture": "A1",
+          "excluded_count": 2
+        }
+      }
+    ],
+    "version": "ordinal-model-v1"
+  }
+}

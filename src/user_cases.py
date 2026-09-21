@@ -40,10 +40,7 @@ def load_property_catalog(root=ROOT):
         require(isinstance(item, dict) and isinstance(item.get("property"), str), "Некорректное свойство.")
         require(item["property"] not in seen, "Свойство повторяется в каталоге.")
         require(isinstance(item.get("name"), str) and bool(item["name"].strip()), "У свойства отсутствует название.")
-        require(item.get("type") in {"boolean", "numeric", "categorical"}, "Неизвестный тип свойства.")
-        if item["type"] == "categorical":
-            require(isinstance(item.get("value_labels"), dict) and bool(item["value_labels"]), "Нет значений категориального свойства.")
-            require(all(isinstance(k, str) and isinstance(v, str) and v for k, v in item["value_labels"].items()), "Некорректные названия категорий.")
+        require(item.get("type") == "boolean", "Пользовательские свойства должны быть логическими.")
         seen.add(item["property"])
     return properties
 
@@ -66,19 +63,10 @@ def build_user_model(case, root=ROOT):
         name, prop = constraint["name"], constraint["property"]
         require(isinstance(name, str) and bool(name.strip()), "Укажите название ограничения.")
         require(isinstance(prop, str) and prop in catalog, "Выберите свойство из параметров модели.")
-        kind = catalog[prop]["type"]
         operator, value = constraint["operator"], constraint["required_value"]
-        rule = {"id": f"U{index}", "name": name.strip(), "property": prop, "enabled": True}
-        if kind == "boolean":
-            require(operator == "==" and isinstance(value, bool), "Для логического свойства выберите равно и Да/Нет.")
-            rule.update(type="boolean", expected=value)
-        elif kind == "numeric":
-            require(operator in (">=", "<=") and number(value), "Для числового свойства выберите не меньше/не больше и конечное число.")
-            rule.update(type="numeric_min" if operator == ">=" else "numeric_max", threshold=value)
-        else:
-            require(operator == "in" and isinstance(value, list) and bool(value), "Выберите хотя бы одно допустимое значение.")
-            require(all(isinstance(v, str) and v in catalog[prop]["value_labels"] for v in value), "Неизвестная категория свойства.")
-            rule.update(type="categorical", allowed_values=deepcopy(value))
+        require(operator == "==" and isinstance(value, bool), "Для логического свойства выберите равно и Да/Нет.")
+        rule = {"id": f"U{index}", "name": name.strip(), "property": prop, "enabled": True,
+                "type": "boolean", "expected": value}
         rules.append(rule)
     model.constraints = rules
     model.case_id = "user"
