@@ -9,6 +9,8 @@ import streamlit as st
 
 from src.explanation import build_explanation, presentation
 from src.models import ConfigError, apply_case, load_cases, load_model
+from src.p2_format import format_p2
+from src.p3_format import format_p3
 from src.scoring import normalize_weights
 from src.user_cases import UserCase, build_user_model, configuration_identity, export_user_case, load_property_catalog
 
@@ -77,6 +79,65 @@ def render_factors(view):
             st.write("Нет отображаемых факторов.")
 
 
+def p2_table(rows, numeric_columns=()):
+    if rows:
+        st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True,
+            column_config={name: st.column_config.NumberColumn(name, format="%.4f") for name in numeric_columns})
+
+
+def render_p2(result, view):
+    display = format_p2(result)
+    names = {a["id"]: a["name"] for a in result.input_snapshot["architectures"]}
+    if display["status_text"]:
+        st.warning(display["status_text"])
+        if result.status == "tie":
+            st.write("Равные лидеры: " + ", ".join(names[a] for a in result.winners))
+    else:
+        st.subheader(names[result.recommended_architecture])
+        st.metric("Итоговый балл", f"{result.score:.4f}")
+    p2_table([{"Архитектура": row["name"], "ID": row["architecture"], "Балл": row["score"], "Статус": "допустима"} for row in view["ranking"]], ("Балл",))
+    p2_table([{"Архитектура": row["name"], "ID": row["architecture"], "Статус": "исключена"} for row in view["excluded_alternatives"]])
+
+    if display["summary_title"]:
+        st.subheader(display["summary_title"])
+    for paragraph in display["summary"]:
+        st.write(paragraph)
+
+    st.subheader("Причины исключения")
+    for paragraph in display["exclusion_texts"]:
+        st.write(paragraph)
+    if view["excluded_alternatives"]:
+        with st.expander("Проверка обязательных требований"):
+            p2_table([{"Архитектура": row["name"], "Требование": v["name"], "ID": v["constraint_id"],
+                       "Свойство": v["property"], "Фактически": json.dumps(v["actual"], ensure_ascii=False),
+                       "Условие": f"{v['operator']} {json.dumps(v['expected'], ensure_ascii=False)}"}
+                      for row in view["excluded_alternatives"] for v in row["violated_constraints"]])
+
+    if display["comparison_title"]:
+        st.subheader(display["comparison_title"])
+    if display["comparison_message"]:
+        st.write(display["comparison_message"])
+    if display["comparison_title"] is None:
+        return
+    st.subheader("Положительные факторы")
+    st.write(display["positive_text"])
+    st.subheader("Слабые стороны")
+    st.write(display["negative_text"])
+    st.subheader("Технические таблицы вкладов")
+    for title, key in (("Положительные факторы", "positive_table"), ("Слабые стороны", "negative_table")):
+        st.write(f"**{title}**")
+        rows = [{"Критерий": f"{f['name']} ({f['criterion']})", "Вклад победителя": f["winner_contribution"],
+                 "Вклад конкурента": f["runner_up_contribution"], "Разность вкладов": f["difference"]} for f in display[key]]
+        if rows:
+            p2_table(rows, ("Вклад победителя", "Вклад конкурента", "Разность вкладов"))
+        else:
+            st.write("Нет факторов для отображения.")
+    with st.expander("Вклады всех критериев допустимых альтернатив"):
+        criteria = result.input_snapshot["criteria"]
+        columns = {c["id"]: f"{c['name']} ({c['id']})" for c in criteria}
+        p2_table([{"Архитектура": row["name"], **{columns[key]: value for key, value in row["contributions"].items()}} for row in result.ranking], tuple(columns.values()))
+
+
 def render_sensitivity(rows):
     table([{"Критерий": f"{r['criterion']} · {r['name']}", "Исходный вес": r["original_weight"], "Вес tie": r["nearest_tie_weight"], "|Δ| до tie": r["tie_delta"], "Участники tie": ", ".join(r["tie_winners"]), "Вес switch": r["nearest_switch_weight"], "|Δ| до switch": r["delta"], "Новый победитель": r["new_winner"], "Результат": SENSITIVITY_STATUS[r["status"]]} for r in rows])
     if rows:
@@ -85,29 +146,68 @@ def render_sensitivity(rows):
         table([{"Критерий": row["criterion"], "Направление": "Уменьшение" if direction == "decrease" else "Увеличение", "Вес смены": detail["switch_weight"], "Новый победитель": detail["new_winner"], "Первое равенство": detail["first_tie_weight"], "Участники равенства": ", ".join(detail["tie_winners"]), "Последний проверенный вес": detail["last_tested_weight"], "Проверено точек": detail["tested_count"], "Статус": detail["status"]} for row in rows for direction, detail in row["directions"].items()])
 
 
-def render_extended(view):
-    st.subheader("Краткое резюме")
-    for paragraph in view["summary"]:
+def render_extended(result):
+    display = format_p3(result)
+    names = {a["id"]: a["name"] for a in result.input_snapshot["architectures"]}
+    criteria = {c["id"]: c["name"] for c in result.input_snapshot["criteria"]}
+    st.subheader("Риски, неопределённость и устойчивость")
+    st.write(display["risk_summary"])
+    st.write(display["uncertainty_summary"])
+    for paragraph in display["sensitivity_summary"]:
         st.write(paragraph)
-    st.subheader("Риски по заданным правилам")
-    if view["risks"]:
-        table([{"Правило": r["id"], "Критерий": r["criterion"], "Условие": f"{r['operator']} {r['threshold']}", "Использованное значение": r["used_value"], "Статус данных": r["data_status"], "Модельная подстановка": r["model_value_used"], "Риск": r["text"]} for r in view["risks"]])
-    elif view["status"] == "ok":
-        st.write("Для рекомендации ни одно заданное условие риска не сработало.")
-    else:
-        st.write("Риски рекомендации не определены: нет единственного победителя.")
+    st.caption(display["sensitivity_note"])
+
+    st.subheader("Риски")
+    for paragraph in display["risk_texts"]:
+        st.write(paragraph)
+    if result.risks:
+        with st.expander("Подробные данные о рисках", expanded=False):
+            p2_table([{"Правило": r["id"], "Архитектура": names[r["architecture"]],
+                       "Критерий": f"{criteria[r['criterion']]} ({r['criterion']})",
+                       "Оператор": r["operator"], "Порог": json.dumps(r["threshold"], ensure_ascii=False),
+                       "Использованное значение": r["used_value"], "Статус данных": r["data_status"],
+                       "Модельная подстановка": r["model_value_used"], "Риск": r["text"]} for r in result.risks],
+                     ("Использованное значение",))
+
     st.subheader("Неопределённость и пропуски")
-    if view["based_on_incomplete_data"]:
-        st.warning("Есть пропуски в оценках допустимых альтернатив. Модельные подстановки указаны отдельно и не являются подтверждёнными данными.")
-    if view["uncertain_data"]:
-        table([{"Архитектура": u["architecture"], "Критерий": u["criterion"], "Статус": u["status"], "Исходное значение": u["original_value"], "Модельное значение": u["model_value"], "Использованное значение": u["used_value"], "Модельная подстановка": u["model_value_used"], "В расчёте рейтинга": u["used_in_ranking"]} for u in view["uncertain_data"]])
-        for item in view["uncertain_data"]:
-            if item["model_value_used"]:
-                st.write(f"{item['architecture']} / {item['criterion']}: статус missing; исходное значение отсутствует; отдельно заданное model_value = {item['model_value']:g} использовано для подстановки.")
-    else:
-        st.write("Статусов estimated и missing нет. Метка модельной постановки сохраняется.")
-    st.subheader("Чувствительность к весам")
-    render_sensitivity(view["sensitivity"])
+    for paragraph in display["uncertainty_texts"]:
+        st.write(paragraph)
+    if result.uncertain_data:
+        with st.expander("Подробные данные о неопределённости", expanded=False):
+            p2_table([{"Архитектура": names[u["architecture"]], "ID архитектуры": u["architecture"],
+                       "Критерий": f"{criteria[u['criterion']]} ({u['criterion']})",
+                       "Статус": u["status"], "Исходное значение": u["original_value"],
+                       "Модельное значение": u["model_value"], "Использованное значение": u["used_value"],
+                       "Модельная подстановка": u["model_value_used"], "Архитектура допустима": u["architecture_is_feasible"],
+                       "В расчёте рейтинга": u["used_in_ranking"], "Источник": u["source"]} for u in result.uncertain_data],
+                     ("Исходное значение", "Модельное значение", "Использованное значение"))
+            for item in result.uncertain_data:
+                if item["model_value_used"]:
+                    st.write(f"{item['architecture']} / {item['criterion']}: model_value = {item['model_value']:g}; status = {item['status']}.")
+
+    st.subheader("Чувствительность рекомендации")
+    st.caption(display["sensitivity_note"])
+    table(display["sensitivity_table"])
+    with st.expander("Подробный анализ чувствительности", expanded=False):
+        rows = []
+        for row in result.sensitivity:
+            for direction, detail in row["directions"].items():
+                rows.append({
+                    "Критерий": f"{row['name']} ({row['criterion']})",
+                    "Направление": "Снижение" if direction == "decrease" else "Увеличение",
+                    "Исходный вес": row["original_weight"], "Точка потери однозначности": detail["first_tie_weight"],
+                    "Изменение до потери однозначности": detail["tie_delta"],
+                    "Участники равенства": ", ".join(names[a] for a in detail["tie_winners"]) or "не обнаружено",
+                    "Точка смены рекомендации": detail["switch_weight"], "Изменение до смены": detail["delta"],
+                    "Новая рекомендуемая архитектура": names.get(detail["new_winner"], "не обнаружено"),
+                    "Последний проверенный вес": detail["last_tested_weight"], "Проверено точек": detail["tested_count"],
+                    "Шаг": row["step"], "Нижняя граница": row["range"][0], "Верхняя граница": row["range"][1],
+                    "Статус направления": detail["status"], "Статус критерия": row["status"],
+                })
+        p2_table(rows, ("Исходный вес", "Точка потери однозначности", "Изменение до потери однозначности",
+                       "Точка смены рекомендации", "Изменение до смены", "Последний проверенный вес",
+                       "Шаг", "Нижняя граница", "Верхняя граница"))
+        st.json(result.sensitivity)
 
 
 def render_model_parameters(model):
@@ -282,11 +382,12 @@ def main():
     with explanation_tab:
         mode = st.radio("Представление", ["P1", "P2", "P3"], format_func=lambda value: {"P1": "P1 · Рейтинг", "P2": "P2 · Базовое объяснение", "P3": "P3 · Расширенное объяснение"}[value], horizontal=True, key="presentation_mode")
         view = presentation(result, mode)
-        render_ranking(view, names)
         if mode in {"P2", "P3"}:
-            render_factors(view)
-        if mode == "P3":
-            render_extended(view)
+            render_p2(result, view)
+            if mode == "P3":
+                render_extended(result)
+        else:
+            render_ranking(view, names)
         st.caption(f"Расчёт: {view['calculation_id'][:16]}")
     with sensitivity_tab:
         st.subheader("Точки смены рекомендации")
