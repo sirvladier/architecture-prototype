@@ -15,7 +15,7 @@ from src.scoring import normalize_weights
 from src.user_cases import UserCase, build_user_model, configuration_identity, export_user_case, load_property_catalog
 
 
-st.set_page_config(page_title="Выбор архитектуры", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Выбор архитектуры", layout="wide", initial_sidebar_state="auto")
 
 STATUS = {
     "ok": "Рекомендация сформирована",
@@ -37,20 +37,60 @@ SENSITIVITY_STATUS = {
 
 def table(rows):
     if rows:
-        st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+        frame = pd.DataFrame(rows)
+        numeric_columns = {
+            name: st.column_config.NumberColumn(name, format="%.4f", width="small")
+            for name in frame.columns
+            if pd.api.types.is_float_dtype(frame[name])
+        }
+        for name in ("Архитектура", "Название", "Риск", "Требование", "Результат"):
+            if name in frame.columns:
+                numeric_columns[name] = st.column_config.TextColumn(name, width="large")
+        if "Критерий" in frame.columns:
+            numeric_columns["Критерий"] = st.column_config.TextColumn("Критерий", width="medium")
+        for name in ("ID", "ID архитектуры", "Статус", "Направление", "Нормированный вес"):
+            if name in frame.columns:
+                numeric_columns[name] = (st.column_config.NumberColumn(name, format="%.4f", width="small")
+                                         if pd.api.types.is_float_dtype(frame[name]) else
+                                         st.column_config.TextColumn(name, width="small"))
+        if "Введённая значимость" in frame.columns:
+            name = "Введённая значимость"
+            numeric_columns[name] = (st.column_config.NumberColumn(name, format="%.4g", width="small")
+                                     if pd.api.types.is_numeric_dtype(frame[name]) else
+                                     st.column_config.TextColumn(name, width="small"))
+        st.dataframe(frame, hide_index=True, use_container_width=True,
+            column_config=numeric_columns)
+
+
+def recommendation_card(name, score):
+    with st.container(border=True):
+        description, value = st.columns([2, 1], vertical_alignment="center")
+        with description:
+            st.caption("РЕКОМЕНДАЦИЯ")
+            st.subheader(name)
+            st.caption(STATUS["ok"])
+        with value:
+            st.metric("Итоговый балл", f"{score:.3f}".replace(".", ","))
+
+
+def display_number(value, places=4):
+    return f"{value:.{places}f}".rstrip("0").rstrip(".").replace(".", ",")
 
 
 def render_ranking(view, names):
     if view["status"] == "ok":
-        st.subheader(f"{view['recommended_architecture']} · {names[view['recommended_architecture']]}")
-        st.metric("Итоговый балл", f"{view['score']:.6f}")
+        recommendation_card(names[view["recommended_architecture"]], view["score"])
     elif view["status"] == "tie":
         st.warning(STATUS[view["status"]])
         st.write("Равные лидеры: " + ", ".join(view["winners"]))
     else:
         st.warning(STATUS[view["status"]])
-    table([{"Архитектура": row["architecture"], "Название": row["name"], "Балл": row["score"], "Статус": "допустима"} for row in view["ranking"]])
-    table([{"Архитектура": row["architecture"], "Название": row["name"], "Статус": "excluded"} for row in view["excluded_alternatives"]])
+    if view["ranking"]:
+        st.subheader("Рейтинг допустимых альтернатив")
+        table([{"Архитектура": row["name"], "ID": row["architecture"], "Балл": row["score"], "Статус": "допустима"} for row in view["ranking"]])
+    if view["excluded_alternatives"]:
+        st.caption("Исключены обязательными требованиями")
+        table([{"Архитектура": row["name"], "ID": row["architecture"], "Статус": "исключена"} for row in view["excluded_alternatives"]])
 
 
 def render_factors(view):
@@ -82,7 +122,11 @@ def render_factors(view):
 def p2_table(rows, numeric_columns=()):
     if rows:
         st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True,
-            column_config={name: st.column_config.NumberColumn(name, format="%.4f") for name in numeric_columns})
+            column_config={
+                **{name: st.column_config.NumberColumn(name, format="%.4f", width="small") for name in numeric_columns},
+                **{name: st.column_config.TextColumn(name, width="large") for name in ("Архитектура", "Критерий", "Риск", "Требование") if name in rows[0]},
+                **{name: st.column_config.TextColumn(name, width="small") for name in ("ID", "ID архитектуры") if name in rows[0]},
+            })
 
 
 def render_p2(result, view):
@@ -93,16 +137,19 @@ def render_p2(result, view):
         if result.status == "tie":
             st.write("Равные лидеры: " + ", ".join(names[a] for a in result.winners))
     else:
-        st.subheader(names[result.recommended_architecture])
-        st.metric("Итоговый балл", f"{result.score:.4f}")
-    p2_table([{"Архитектура": row["name"], "ID": row["architecture"], "Балл": row["score"], "Статус": "допустима"} for row in view["ranking"]], ("Балл",))
-    p2_table([{"Архитектура": row["name"], "ID": row["architecture"], "Статус": "исключена"} for row in view["excluded_alternatives"]])
+        recommendation_card(names[result.recommended_architecture], result.score)
+    if view["ranking"] or view["excluded_alternatives"]:
+        with st.expander("Рейтинг и исключённые альтернативы", expanded=False):
+            p2_table([{"Архитектура": row["name"], "ID": row["architecture"], "Балл": row["score"], "Статус": "допустима"} for row in view["ranking"]], ("Балл",))
+            p2_table([{"Архитектура": row["name"], "ID": row["architecture"], "Статус": "исключена"} for row in view["excluded_alternatives"]])
 
+    st.divider()
     if display["summary_title"]:
         st.subheader(display["summary_title"])
     for paragraph in display["summary"]:
         st.write(paragraph)
 
+    st.divider()
     st.subheader("Причины исключения")
     for paragraph in display["exclusion_texts"]:
         st.write(paragraph)
@@ -115,15 +162,18 @@ def render_p2(result, view):
                       for row in view["excluded_alternatives"] for v in row["violated_constraints"]])
 
     if display["comparison_title"]:
+        st.divider()
         st.subheader(display["comparison_title"])
     if display["comparison_message"]:
         st.write(display["comparison_message"])
     if display["comparison_title"] is None:
         return
-    st.subheader("Положительные факторы")
-    st.write(display["positive_text"])
-    st.subheader("Слабые стороны")
-    st.write(display["negative_text"])
+    with st.container(border=True):
+        st.subheader("Положительные факторы")
+        st.write(display["positive_text"])
+    with st.container(border=True):
+        st.subheader("Слабые стороны")
+        st.write(display["negative_text"])
     st.subheader("Технические таблицы вкладов")
     for title, key in (("Положительные факторы", "positive_table"), ("Слабые стороны", "negative_table")):
         st.write(f"**{title}**")
@@ -140,10 +190,23 @@ def render_p2(result, view):
 
 
 def render_sensitivity(rows):
-    table([{"Критерий": f"{r['criterion']} · {r['name']}", "Исходный вес": r["original_weight"], "Вес tie": r["nearest_tie_weight"], "|Δ| до tie": r["tie_delta"], "Участники tie": ", ".join(r["tie_winners"]), "Вес switch": r["nearest_switch_weight"], "|Δ| до switch": r["delta"], "Новый победитель": r["new_winner"], "Результат": SENSITIVITY_STATUS[r["status"]]} for r in rows])
+    def shown(value):
+        return "—" if value is None else display_number(value)
+    table([{"Критерий": f"{r['criterion']} · {r['name']}", "Исходный вес": shown(r["original_weight"]),
+            "Вес равенства": shown(r["nearest_tie_weight"]),
+            "Вес смены": shown(r["nearest_switch_weight"]),
+            "Результат": SENSITIVITY_STATUS[r["status"]] +
+                (f" · {r['new_winner']}" if r["new_winner"] else "")} for r in rows])
     if rows:
-        st.caption(f"Шаг: {rows[0]['step']:g}; диапазон: {rows[0]['range']}. Результат относится к проверенной сетке весов. tie: потеря однозначности; switch: другой единственный победитель.")
+        st.caption(f"Шаг: {rows[0]['step']:g}; диапазон: {rows[0]['range']}. Результат относится к проверенной сетке весов. Равенство означает потерю однозначности, смена — появление другого единственного победителя.")
     with st.expander("Оба направления и точки равенства"):
+        st.caption("Полные сведения о ближайших точках")
+        table([{"Критерий": f"{r['criterion']} · {r['name']}", "Исходный вес": shown(r["original_weight"]),
+            "Вес равенства": shown(r["nearest_tie_weight"]), "Δ до равенства": shown(r["tie_delta"]),
+            "Участники равенства": ", ".join(r["tie_winners"]) or "—",
+            "Вес смены": shown(r["nearest_switch_weight"]), "Δ до смены": shown(r["delta"]),
+            "Новый победитель": r["new_winner"] or "—", "Результат": SENSITIVITY_STATUS[r["status"]]} for r in rows])
+        st.caption("Проверка обоих направлений")
         table([{"Критерий": row["criterion"], "Направление": "Уменьшение" if direction == "decrease" else "Увеличение", "Вес смены": detail["switch_weight"], "Новый победитель": detail["new_winner"], "Первое равенство": detail["first_tie_weight"], "Участники равенства": ", ".join(detail["tie_winners"]), "Последний проверенный вес": detail["last_tested_weight"], "Проверено точек": detail["tested_count"], "Статус": detail["status"]} for row in rows for direction, detail in row["directions"].items()])
 
 
@@ -151,11 +214,14 @@ def render_extended(result):
     display = format_p3(result)
     names = {a["id"]: a["name"] for a in result.input_snapshot["architectures"]}
     criteria = {c["id"]: c["name"] for c in result.input_snapshot["criteria"]}
+    st.divider()
     st.subheader("Риски, неопределённость и устойчивость")
-    st.write(display["risk_summary"])
-    st.write(display["uncertainty_summary"])
-    for paragraph in display["sensitivity_summary"]:
-        st.write(paragraph)
+    st.caption("Дополнительный слой анализа рекомендации")
+    with st.container(border=True):
+        st.write(display["risk_summary"])
+        st.write(display["uncertainty_summary"])
+        for paragraph in display["sensitivity_summary"]:
+            st.write(paragraph)
     st.caption(display["sensitivity_note"])
 
     st.subheader("Риски")
@@ -235,6 +301,10 @@ def render_user_inputs(base, catalog):
     state.setdefault("user_weights", {c["id"]: float(c["weight"]) for c in base.criteria})
     state.setdefault("user_constraints", [])
     state.setdefault("user_row_counter", 0)
+    if state.get("user_weight_format_version") != 3:
+        for criterion in base.criteria:
+            state.pop(f"user_weight_{criterion['id']}", None)
+        state["user_weight_format_version"] = 3
     def restore_widget(key, value):
         # Keep widget defaults stable; changing defaults can discard browser edits.
         if key not in state:
@@ -246,15 +316,21 @@ def render_user_inputs(base, catalog):
         with columns[index % 2]:
             key = criterion["id"]
             restore_widget(f"user_weight_{key}", float(state["user_weights"][key]))
+            widget_key = f"user_weight_{key}"
             state["user_weights"][key] = st.number_input(criterion["name"], min_value=0.0,
-                step=0.1, format="%g", key=f"user_weight_{key}")
+                step=0.1, format="%.12g", key=widget_key)
     weights = deepcopy(state["user_weights"])
     try:
         normalized = normalize_weights(weights)
-        table([{"Критерий": c["name"], "Направление": c["direction"], "Введённая значимость": weights[c["id"]], "Нормированный вес": normalized[c["id"]]} for c in base.criteria])
+        st.caption("Введённые и нормированные веса")
+        table([{"Критерий": c["name"], "Направление": c["direction"],
+                "Введённая значимость": display_number(weights[c["id"]]),
+                "Нормированный вес": f"{display_number(normalized[c['id']] * 100, 2)} %"}
+               for c in base.criteria])
     except ConfigError:
         st.error("Все веса равны нулю. Задайте положительную значимость хотя бы одного критерия.")
 
+    st.divider()
     st.subheader("Обязательные требования проекта")
     st.caption("Задайте обязательное значение свойства. «Нет» означает требование отсутствия свойства, а не отключение ограничения. Чтобы снять требование, удалите его. Все требования проверяются до рейтинга.")
     properties = {item["property"]: item for item in catalog}
@@ -299,8 +375,8 @@ def render_user_inputs(base, catalog):
 
 def main():
     st.header("Выбор архитектуры")
-    st.caption("Исследовательский прототип · A1 / A2 / A3")
-    st.info("Литературно-информированная порядковая модель. Оценки 1–5 используются для формализации качественных различий между архитектурными альтернативами в рамках данного исследования и не являются универсальными нормативными значениями.")
+    st.caption("Исследовательский прототип для сравнения архитектурных альтернатив")
+    st.caption("Модельная оговорка · Литературно-информированная порядковая модель. Оценки 1–5 используются для формализации качественных различий между архитектурными альтернативами в рамках данного исследования и не являются универсальными нормативными значениями.")
     try:
         base, cases, catalog = load_model(), load_cases(), load_property_catalog()
         identity = configuration_identity()
@@ -310,8 +386,8 @@ def main():
     with st.sidebar:
         work_mode = st.radio("Режим работы", ["Модельный кейс", "Пользовательский кейс"], key="work_mode")
         if work_mode == "Модельный кейс":
-            selected = st.selectbox("Кейс", [c["id"] for c in cases], format_func=lambda value: next(c["name"] for c in cases if c["id"] == value), key="case_id")
-            st.caption("SYNTHETIC / MODEL CASES")
+            st.caption("Подготовленные модельные сценарии")
+            selected = st.selectbox("Модельный кейс", [c["id"] for c in cases], format_func=lambda value: next(c["name"] for c in cases if c["id"] == value), key="case_id")
         else:
             selected = "user"
     user_mode = work_mode == "Пользовательский кейс"
@@ -334,6 +410,9 @@ def main():
     with source_tab:
         if user_mode:
             user_case = render_user_inputs(base, catalog)
+            st.divider()
+            render_model_parameters(model)
+            st.divider()
             signature = json.dumps({"weights": user_case.weights, "constraints": user_case.constraints, **identity}, sort_keys=True)
             submitted = st.button("Сформировать рекомендацию", type="primary", icon=":material/calculate:", key="calculate_user")
             if submitted:
@@ -360,7 +439,8 @@ def main():
                 table([{"Требование": r["name"], "Условие": "Равно", "Требуемое значение": "Да" if r["expected"] else "Нет"} for r in enabled])
             else:
                 st.write("Обязательные ограничения не заданы.")
-        render_model_parameters(model)
+            st.divider()
+            render_model_parameters(model)
         if result is not None:
             st.caption(f"Сохранённый расчёт: {result.calculation_id[:16]} · {STATUS[result.status]}")
     st.session_state["result"] = result
@@ -373,8 +453,11 @@ def main():
         if result.status == "insufficient_data":
             st.write("Допустимы по ограничениям, но не ранжированы: " + ", ".join(a["name"] for a in result.feasible_alternatives))
             table([{"Архитектура": names[u["architecture"]], "Отсутствующий критерий": u["criterion"]} for u in result.blocking_data])
+        st.divider()
         st.subheader("Веса проекта")
-        table([{"Критерий": c["name"], "Введённая значимость": c["weight"], "Нормированный вес": result.normalized_weights[c["id"]]} for c in result.input_snapshot["criteria"]])
+        table([{"Критерий": c["name"], "Введённая значимость": display_number(c["weight"]),
+                "Нормированный вес": f"{display_number(result.normalized_weights[c['id']] * 100, 2)} %"}
+               for c in result.input_snapshot["criteria"]])
         st.subheader("Вклады критериев")
         table([{"Архитектура": r["name"], **r["contributions"], "Итого": r["score"]} for r in result.ranking])
         if result.ranking:
@@ -394,12 +477,13 @@ def main():
         render_sensitivity(result.sensitivity)
     with st.sidebar:
         st.divider()
-        st.write(STATUS[result.status])
+        st.markdown("**Результат**")
+        st.caption(STATUS[result.status])
         if user_mode:
             st.download_button("Скачать исходные данные кейса", data=json.dumps(export_user_case(result), ensure_ascii=False, indent=2, allow_nan=False),
-                file_name="user_case.json", mime="application/json", icon=":material/download:")
+                file_name="user_case.json", mime="application/json", icon=":material/download:", use_container_width=True)
         st.download_button("Результат JSON", data=json.dumps(result.to_dict(), ensure_ascii=False, indent=2, allow_nan=False),
-            file_name=f"{selected}_explanation.json", mime="application/json", icon=":material/download:")
+            file_name=f"{selected}_explanation.json", mime="application/json", icon=":material/download:", use_container_width=True)
 
 
 if __name__ == "__main__":
